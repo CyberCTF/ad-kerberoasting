@@ -1,0 +1,73 @@
+{
+  "objectives": [
+    {
+      "key": "main",
+      "title": "Read the flag",
+      "prompt": "From the hodor foothold, kerberoast svc_sql: request its Kerberos service ticket, crack it offline to recover svc_sql's password, then read flag.txt from the //dc/vault share that only svc_sql may open.",
+      "check": {
+        "evidence": "SECRET",
+        "format": "FLAG{%s}"
+      },
+      "dev": "FLAG{dev-kerberoast-north-svc_sql}",
+      "hints": [
+        "hodor is a normal domain user (hodor / Hodor123!). Point your resolver and /etc/krb5.conf at the DC, then enumerate SPNs: GetUserSPNs.py -dc-ip <dc> NORTH.SEVENKINGDOMS.LOCAL/hodor:'Hodor123!'.",
+        "Request the service ticket with the native MIT client against the Samba KDC (kinit hodor, then kvno MSSQLSvc/dc.north.sevenkingdoms.local:1433) and pull the $krb5tgs$23$ hash out of your credential cache.",
+        "The ticket is RC4 (etype 23): crack it with hashcat -m 13100 against a wordlist. The password is a weak season+year word. Then: smbclient //dc/vault -U 'NORTH\\svc_sql%<cracked>' -c 'get flag.txt'."
+      ],
+      "steps": [
+        {
+          "key": "technique",
+          "title": "Name the technique",
+          "prompt": "What is the name of the attack that abuses a service account's SPN to recover its password offline?",
+          "check": {
+            "answer": [
+              "kerberoasting",
+              "kerberoast"
+            ]
+          }
+        },
+        {
+          "key": "account",
+          "title": "Find the roastable account",
+          "prompt": "Which account carries a Service Principal Name and is therefore roastable? (username)",
+          "check": {
+            "answer": [
+              "svc_sql",
+              "north\\svc_sql"
+            ]
+          }
+        },
+        {
+          "key": "spn",
+          "title": "Name the attribute",
+          "prompt": "Which account attribute makes it roastable? (three words, or its abbreviation)",
+          "check": {
+            "answer": [
+              "service principal name",
+              "serviceprincipalname",
+              "spn"
+            ]
+          }
+        },
+        {
+          "key": "etype",
+          "title": "Name the ticket encryption",
+          "prompt": "Which encryption type is the service ticket, that makes it fast to crack? (name or Kerberos etype number)",
+          "check": {
+            "answer_regex": "rc4|arcfour|\\b23\\b"
+          }
+        },
+        {
+          "key": "hashcat",
+          "title": "Pick the crack mode",
+          "prompt": "Which hashcat mode cracks an RC4 TGS-REP ($krb5tgs$23$) hash?",
+          "check": {
+            "answer": [
+              "13100"
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}
