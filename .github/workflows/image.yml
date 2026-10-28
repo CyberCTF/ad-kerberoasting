@@ -1,0 +1,48 @@
+name: Publish lab image
+
+# The lab ships a pre-built Docker image (app.image beside app.build in isoloom.yml). This builds
+# build/dc here and pushes it to GHCR, so a student pulls it instead of building Samba + hashcat
+# locally (~10 minutes). It is an optimisation, not a dependency: the runtime pulls the published
+# image when it can and builds build/dc locally when it cannot, so the lab still runs if this image
+# is missing, private, or the registry is unreachable. Keep the tag in step with app.image.
+on:
+  push:
+    branches: [main]
+    paths:
+      - build/**
+      - .github/workflows/image.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  # Must match app.image in isoloom.yml (lowercase; GHCR requires a lowercase owner).
+  IMAGE: ghcr.io/cyberctf/ad-kerberoasting-dc
+
+jobs:
+  image:
+    # Skip the template itself; only the real lab publishes an image.
+    if: github.repository != 'CyberCTF/Lab-Template'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build and push the DC image
+        uses: docker/build-push-action@v6
+        with:
+          context: build/dc
+          # The generated Compose pins linux/amd64; publish the image for that platform.
+          platforms: linux/amd64
+          push: true
+          # :1 tracks app.image and moves with main; :sha is an immutable record of each build.
+          tags: |
+            ${{ env.IMAGE }}:1
+            ${{ env.IMAGE }}:latest
+            ${{ env.IMAGE }}:${{ github.sha }}
