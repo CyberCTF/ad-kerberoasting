@@ -2,10 +2,10 @@
   "project_name": "cyberlabs-ad-kerberoasting",
   "slug": "ad-kerberoasting",
   "title": "Kerberoasting (Active Directory)",
-  "description": "A single Samba Active Directory Domain Controller for NORTH.SEVENKINGDOMS.LOCAL, no Windows VMs. A service account (svc_sql) carries an MSSQL Service Principal Name and a weak RC4 key, so any domain user can request its Kerberos service ticket and crack it offline. From the foothold user hodor, roast svc_sql, recover its password, and read the flag from a share only svc_sql may open.",
+  "description": "A single Samba Active Directory Domain Controller for MERIDIAN.LAB (Meridian Freight, a logistics company), no Windows VMs. The Transport Management System's database runs under a service account (svc-mssql-tms) that carries an MSSQL Service Principal Name and a weak RC4 key, so any domain user can request its Kerberos service ticket and crack it offline. From the foothold user t.okonkwo, roast svc-mssql-tms, recover its password, and read the flag from a share only that account may open.",
   "category": "network",
   "difficulty": 2,
   "evidence_kind": "SECRET",
   "capabilities": [],
-  "question": "Kerberoast the svc_sql service account, crack its Kerberos service ticket offline, and use the recovered password to read the flag from the //dc/vault share."
+  "question": "Kerberoast the svc-mssql-tms service account, crack its Kerberos service ticket offline, and use the recovered password to read the flag from the //dc/manifests share."
 }

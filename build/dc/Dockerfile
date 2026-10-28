@@ -1,7 +1,7 @@
 # Samba, acting as an Active Directory Domain Controller, in a single Linux container.
-# It provisions the realm NORTH.SEVENKINGDOMS.LOCAL at first start (idempotent), plants a
-# low-privilege user (hodor), a kerberoastable service account (svc_sql, SPN MSSQLSvc/...),
-# and a vault share only svc_sql may read. The kerberoast client tooling (MIT Kerberos,
+# It provisions the realm MERIDIAN.LAB at first start (idempotent), plants a low-privilege
+# user (t.okonkwo), a kerberoastable service account (svc-mssql-tms, SPN MSSQLSvc/...), and a
+# manifests share only svc-mssql-tms may read. The kerberoast client tooling (MIT Kerberos,
 # impacket, hashcat) ships in the image so the lab's check can prove the path from inside the DC.
 FROM debian:12-slim
 
@@ -9,7 +9,7 @@ ENV DEBIAN_FRONTEND=noninteractive
 
 # Preseed krb5 so its package install never prompts.
 RUN set -eux; \
-    echo "krb5-config krb5-config/default_realm string NORTH.SEVENKINGDOMS.LOCAL" | debconf-set-selections; \
+    echo "krb5-config krb5-config/default_realm string MERIDIAN.LAB" | debconf-set-selections; \
     apt-get update; \
     apt-get install -y --no-install-recommends \
         samba samba-ad-provision samba-dsdb-modules samba-vfs-modules smbclient ldb-tools \
