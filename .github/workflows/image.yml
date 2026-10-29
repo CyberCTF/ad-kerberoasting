@@ -1,48 +1,45 @@
 name: Publish lab image
 
-# The lab ships a pre-built Docker image (app.image beside app.build in isoloom.yml). This builds
-# build/dc here and pushes it to GHCR, so a student pulls it instead of building Samba + hashcat
-# locally (~10 minutes). It is an optimisation, not a dependency: the runtime pulls the published
-# image when it can and builds build/dc locally when it cannot, so the lab still runs if this image
-# is missing, private, or the registry is unreachable. Keep the tag in step with app.image.
+# The lab ships a pre-built Docker image (app.image beside app.build in isoloom.yml). This generates
+# the Docker edition and publishes its buildable Compose services to Docker Hub under
+# cyberctf/<repo>, each tagged by its service name, so the DC becomes cyberctf/ad-kerberoasting:dc
+# and a student pulls it instead of building Samba + hashcat locally (~10 minutes). It is an
+# optimisation, not a dependency: the runtime pulls the published image when it can and builds
+# build/dc locally when it cannot, so the lab still runs if this image is missing, the registry is
+# unreachable, or the push below fails. Only services with a build: are pushed (the busybox probe
+# and the check services are skipped). Keep app.image's repo/tag in step with this job's output.
 on:
   push:
     branches: [main]
     paths:
       - build/**
+      - isoloom.yml
       - .github/workflows/image.yml
   workflow_dispatch:
 
 permissions:
   contents: read
-  packages: write
-
-env:
-  # Must match app.image in isoloom.yml (lowercase; GHCR requires a lowercase owner).
-  IMAGE: ghcr.io/cyberctf/ad-kerberoasting-dc
 
 jobs:
   image:
-    # Skip the template itself; only the real lab publishes an image.
+    # Skip the template itself; only a real lab publishes an image.
     if: github.repository != 'CyberCTF/Lab-Template'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Log in to GHCR
-        uses: docker/login-action@v3
+      # Generate the Docker edition so the publishing action reads the real Compose file (the DC
+      # service carries both build: and image:, so it is built here and tagged as app.image).
+      - name: Install the Isoloom CLI
+        run: cargo install isoloom@1.0.2
+      - name: Generate the Docker edition
+        run: isoloom generate --target docker
+      # Shared action: builds each buildable service and pushes it to Docker Hub as
+      # <org>/<repo>:<service>. Logs in as the organisation (DOCKER_ORGA) with its access token
+      # (DOCKER_OAT), the same credentials the launcher's attack-box image uses.
+      - name: Build and publish to Docker Hub
+        uses: FAKGR0UP/docker-compose-publishing-tag-by-services@V1.0.1
         with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Build and push the DC image
-        uses: docker/build-push-action@v6
-        with:
-          context: build/dc
-          # The generated Compose pins linux/amd64; publish the image for that platform.
-          platforms: linux/amd64
-          push: true
-          # :1 tracks app.image and moves with main; :sha is an immutable record of each build.
-          tags: |
-            ${{ env.IMAGE }}:1
-            ${{ env.IMAGE }}:latest
-            ${{ env.IMAGE }}:${{ github.sha }}
+          docker_hub_username: ${{ secrets.DOCKER_ORGA }}
+          docker_hub_org_name: ${{ secrets.DOCKER_ORGA }}
+          docker_hub_org_token: ${{ secrets.DOCKER_OAT }}
+          docker_compose_files: .isoloom/docker/compose.yml

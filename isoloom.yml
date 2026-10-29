@@ -35,12 +35,13 @@ machines:
     # provisioning copies it into the manifests share that only svc-mssql-tms may read.
     files:
       - { path: /ctf/flag, input: CTF_FLAG_MAIN, mode: "0444" }
-    # A pre-built image (published by .github/workflows/image.yml to GHCR) beside the local build:
-    # the launcher pulls the published image when it can and only builds build/dc when it cannot, so
-    # a student skips the ~10-minute Samba + hashcat build. If the registry is unreachable or the
-    # image is missing, the lab still comes up by building locally.
+    # A pre-built image (published to Docker Hub by .github/workflows/image.yml) beside the local
+    # build: the launcher pulls the published image when it can and only builds build/dc when it
+    # cannot, so a student skips the ~10-minute Samba + hashcat build. If Docker Hub is unreachable
+    # or the image is missing, the lab still comes up by building locally. The tag is the Compose
+    # service name (`dc`), matching the publishing action's one-repo-per-lab, tag-per-service scheme.
     app:
-      image: ghcr.io/cyberctf/ad-kerberoasting-dc:1
+      image: cyberctf/ad-kerberoasting:dc
       build: build/dc
 
 checks:
