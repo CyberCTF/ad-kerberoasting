@@ -33,6 +33,16 @@ jobs:
         run: cargo install isoloom@1.0.2
       - name: Generate the Docker edition
         run: isoloom generate --target docker
+      # A Docker Hub organisation access token can push to cyberctf/* but cannot pull library/*
+      # base images (e.g. debian). Pull every base image the lab's Dockerfiles declare now, while
+      # still anonymous, so the build below uses the local copy and never re-authenticates it.
+      - name: Pre-pull base images (anonymous, before the org login)
+        run: |
+          set -euo pipefail
+          find build -name Dockerfile -print0 \
+            | xargs -0 grep -hiE '^[[:space:]]*FROM[[:space:]]' \
+            | awk '{print $2}' | grep -viE '^(scratch|\$|--)' | sort -u \
+            | while read -r img; do echo "pulling $img"; docker pull "$img" || true; done
       # Shared action: builds each buildable service and pushes it to Docker Hub as
       # <org>/<repo>:<service>. Logs in as the organisation (DOCKER_ORGA) with its access token
       # (DOCKER_OAT), the same credentials the launcher's attack-box image uses.
