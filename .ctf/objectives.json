@@ -11,7 +11,7 @@
       "dev": "FLAG{dev-kerberoast-meridian}",
       "hints": [
         "t.okonkwo is a normal domain user (t.okonkwo / Dispatch!2024). Point your resolver and /etc/krb5.conf at the DC, then enumerate SPNs: GetUserSPNs.py -dc-ip <dc> MERIDIAN.LAB/t.okonkwo:'Dispatch!2024'.",
-        "Request the service ticket with the native MIT client against the Samba KDC (kinit t.okonkwo, then kvno MSSQLSvc/dc.meridian.lab:1433) and pull the $krb5tgs$23$ hash out of your credential cache.",
+        "Request the service ticket with the native MIT Kerberos tools (kinit t.okonkwo, then kvno MSSQLSvc/dc.meridian.lab:1433) and pull the $krb5tgs$23$ hash out of your credential cache.",
         "The ticket is RC4 (etype 23): crack it with hashcat -m 13100 against a wordlist. The password is a weak company+year word. Then: smbclient //dc/manifests -U 'MERIDIAN\\svc-mssql-tms%<cracked>' -c 'get flag.txt'."
       ],
       "steps": [
