@@ -2,7 +2,7 @@
   "project_name": "cyberlabs-ad-kerberoasting",
   "slug": "ad-kerberoasting",
   "title": "Kerberoasting (Active Directory)",
-  "description": "A single Samba Active Directory Domain Controller for MERIDIAN.LAB (Meridian Freight, a logistics company), no Windows VMs. The Transport Management System's database runs under a service account (svc-mssql-tms) that carries an MSSQL Service Principal Name and a weak RC4 key, so any domain user can request its Kerberos service ticket and crack it offline. From the foothold user t.okonkwo, roast svc-mssql-tms, recover its password, and read the flag from a share only that account may open.",
+  "description": "Meridian Freight, a logistics company, runs its Windows domain MERIDIAN.LAB. The database behind its Transport Management System runs under a service account, svc-mssql-tms, that carries an MSSQL Service Principal Name and a weak RC4 key, so any domain user can request its Kerberos service ticket and crack it offline. From the foothold user t.okonkwo, roast svc-mssql-tms, recover its password, and read the flag from a share only that account may open.",
   "category": "network",
   "difficulty": 2,
   "evidence_kind": "SECRET",
